@@ -1,0 +1,15 @@
+# Keep the build context minimal — only pyproject.toml, the module, and
+# README.md (needed for package metadata) are used by the Dockerfile.
+.git/
+.claude/
+.mcp.json
+.env*
+__pycache__/
+.pytest_cache/
+tests/
+dist/
+build/
+*.egg-info/
+*.md
+!README.md
+xml_example.txt

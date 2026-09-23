@@ -1,0 +1,6 @@
+# Keep the published sdist lean: setuptools' legacy default auto-includes
+# tests/test*.py. Drop the test tree — it isn't needed to build or run the
+# package (the wheel ships only perforce_alm_mcp.py), and the bundled tests
+# wouldn't run from the sdist anyway since conftest.py / _test_helpers.py
+# (root-level, not matched by the test*.py glob) are not included.
+prune tests

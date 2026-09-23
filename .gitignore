@@ -1,0 +1,20 @@
+# claude code / python
+.claude/settings.local.json
+.claude/sessions/
+.mcp.json
+__pycache__/
+
+# Surround SCM metadata - not relevant to the public repo
+.MySCMServerInfo
+.sscmignore
+
+# local secrets - never check in
+perforce-alm-config.local.json
+
+# build artifacts (uv build / pip wheel)
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+
+developer-notes.md

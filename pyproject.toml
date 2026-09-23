@@ -1,0 +1,61 @@
+[project]
+name = "perforce-alm-mcp"
+description = "MCP server wrapping the Perforce ALM REST API"
+readme = "README.md"
+requires-python = ">=3.13"
+dynamic = ["version"]
+authors = [{ name = "Perforce Software, Inc." }]
+license = "MIT"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    # Exact pins, not floors: every install path (pip install ., uvx, Docker)
+    # resolves dependencies straight from this list with no lock file in the
+    # loop, so a >= here means "whatever is newest on PyPI today" - a
+    # different, unreviewed dependency tree per install, and a compromised
+    # upstream release adopted with no human decision. Bump deliberately, one
+    # version at a time, and regenerate uv.lock / requirements.txt in the
+    # same commit (see "Dependencies" below).
+    "fastmcp==3.2.4",
+    # 2.12.0, not 2.11.7: mcp==1.28.1 requires pydantic>=2.11.0 on Python <3.14
+    # but >=2.12.0 on Python >=3.14 (this project supports both), so 2.12.0 is
+    # the lowest single version satisfying both branches.
+    "pydantic==2.12.0",
+    # Transitive via fastmcp, pinned directly to force the fix for
+    # CVE-2026-59950 (missing Host/Origin validation in the deprecated
+    # mcp.server.websocket.websocket_server transport, fixed in 1.28.1).
+    # fastmcp==3.2.4 alone resolves mcp==1.27.2 (vulnerable) on Python 3.14+
+    # and mcp==1.29.0 on Python <3.14; this exact pin collapses both branches
+    # to 1.28.1. Not exploitable as deployed (this server only uses the
+    # stdio transport), but Mend flags the resolved version regardless.
+    "mcp==1.28.1",
+    # opentelemetry-sdk and opentelemetry-exporter-otlp-proto-grpc ship from the
+    # same upstream release train and are only tested against each other within
+    # the same minor version - bump both together, never independently.
+    "opentelemetry-sdk==1.41.1",
+    "opentelemetry-exporter-otlp-proto-grpc==1.41.1",
+]
+
+[project.urls]
+Homepage = "https://github.com/perforce/perforce-alm-mcp-server"
+Repository = "https://github.com/perforce/perforce-alm-mcp-server"
+Issues = "https://github.com/perforce/perforce-alm-mcp-server/issues"
+
+[project.scripts]
+perforce-alm-mcp = "perforce_alm_mcp:main"
+
+[build-system]
+requires = ["setuptools>=77"]  # >=77 required for the SPDX `license` string (PEP 639)
+build-backend = "setuptools.build_meta"
+
+# Single top-level module, not a package directory.
+[tool.setuptools]
+py-modules = ["perforce_alm_mcp"]
+
+# Single source of truth for the version: read _MCP_VERSION from the module so
+# the package version stays in lockstep with get_versions() — no second bump.
+[tool.setuptools.dynamic]
+version = { attr = "perforce_alm_mcp._MCP_VERSION" }
