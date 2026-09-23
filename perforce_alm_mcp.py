@@ -122,7 +122,7 @@ _OTEL_SERVICE_NAME = "perforce-alm-mcp"
 # Perforce Agentic Gateway (or any operator) can redirect the export destination
 # at runtime via the standard OTel env vars — see _resolve_otel_endpoint();
 # absent those, the compiled default below is used.
-_TELEMETRY_ENABLED = False
+_TELEMETRY_ENABLED = True
 # Compiled default OTLP/gRPC traces endpoint. Telemetry stays off regardless
 # (gated by _TELEMETRY_ENABLED above) until that flag flips to True.
 _OTEL_ENDPOINT = "https://grpc.public.prd.shared.perforce.com"
