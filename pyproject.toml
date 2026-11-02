@@ -20,7 +20,7 @@ dependencies = [
     # version at a time, and regenerate uv.lock / requirements.txt in the
     # same commit (see "Dependencies" below).
     "fastmcp==3.2.4",
-    # 2.12.0, not 2.11.7: mcp==1.28.1 requires pydantic>=2.11.0 on Python <3.14
+    # 2.12.0, not 2.11.7: mcp==1.30.0 requires pydantic>=2.11.0 on Python <3.14
     # but >=2.12.0 on Python >=3.14 (this project supports both), so 2.12.0 is
     # the lowest single version satisfying both branches.
     "pydantic==2.12.0",
@@ -29,14 +29,54 @@ dependencies = [
     # mcp.server.websocket.websocket_server transport, fixed in 1.28.1).
     # fastmcp==3.2.4 alone resolves mcp==1.27.2 (vulnerable) on Python 3.14+
     # and mcp==1.29.0 on Python <3.14; this exact pin collapses both branches
-    # to 1.28.1. Not exploitable as deployed (this server only uses the
+    # to a single version. Not exploitable as deployed (this server only uses the
     # stdio transport), but Mend flags the resolved version regardless.
-    "mcp==1.28.1",
+    # Bumped 1.28.1 -> 1.30.0 (latest <2.0, the ceiling fastmcp==3.2.4 allows)
+    # after Mend flagged 1.28.1 for WS-2026-0089 and CVE-2026-59951 (both HIGH).
+    "mcp==1.30.0",
+    # Transitive via mcp (which only floors it at pyjwt[crypto]>=2.x, no
+    # ceiling), pinned directly to force the fix for the PyJWT CVE batch Mend
+    # flagged against 2.13.0 (CVE-2026-102268 and others in that report).
+    # 2.14.0/2.15.0 carry the relevant hardening (HMAC/JWK key-confusion
+    # validation, JWKS redirect/recursion handling); 2.15.1 is latest. Without
+    # this pin, a pip install/uvx install (neither consults uv.lock) would
+    # still land on whatever's newest on PyPI today incidentally, not by a
+    # reviewed decision - see the policy note above.
+    "pyjwt==2.15.1",
+    # Transitive via fastmcp (which only floors it at >=1.6.5), pinned directly
+    # to force the fix for CVE-2026-96760 (JWS general-JSON-serialization
+    # signature bypass in authlib.jose.jws.deserialize/deserialize_json via an
+    # empty "signatures" array) and the CVE-2026-1146xx batch Mend flagged
+    # against 1.8.0. Fixed in 1.9.0; 1.9.1 additionally fixes CVE-2026-114616.
+    # Not exploitable as deployed - this server configures no FastMCP auth
+    # provider (stdio transport only), so fastmcp's authlib-based JWT/OAuth
+    # code paths are never reached, but Mend flags the resolved version
+    # regardless.
+    "authlib==1.9.1",
+    # Transitive via authlib (which only floors it at >=1.6.8, no ceiling),
+    # pinned directly to force the fix for CVE-2026-119284 (DoS via unbounded
+    # memory use in compact JWS deserialization before size limits are
+    # enforced, GHSA-9pg5-8c7x-5hfx) flagged by Mend against 1.7.5. Fixed in
+    # 1.7.6; 1.7.7 is latest. Not exploitable as deployed - this server
+    # configures no FastMCP auth provider (stdio transport only), so
+    # authlib's joserfc-based JWT code paths are never reached, but Mend
+    # flags the resolved version regardless.
+    "joserfc==1.7.7",
+    # Transitive via the httpx stack (no ceiling), pinned directly to force the
+    # version past 2026.7.22, which Mend flagged for WS-2026-0133. Without this
+    # pin, a pip install/uvx install (neither consults uv.lock) would land on
+    # whatever's newest on PyPI incidentally, not by a reviewed decision.
+    "certifi==2026.10.23",
+    # Transitive via email-validator (which only floors it at >=2.0.0), pinned
+    # directly to force the fix for CVE-2026-114605 (fixed in 2.9.0). Without
+    # this pin, a pip install/uvx install (neither consults uv.lock) would land
+    # on whatever's newest on PyPI incidentally, not by a reviewed decision.
+    "dnspython==2.9.0",
     # opentelemetry-sdk and opentelemetry-exporter-otlp-proto-grpc ship from the
     # same upstream release train and are only tested against each other within
     # the same minor version - bump both together, never independently.
-    "opentelemetry-sdk==1.41.1",
-    "opentelemetry-exporter-otlp-proto-grpc==1.41.1",
+    "opentelemetry-sdk==1.45.1",
+    "opentelemetry-exporter-otlp-proto-grpc==1.45.1",
 ]
 
 [project.urls]
