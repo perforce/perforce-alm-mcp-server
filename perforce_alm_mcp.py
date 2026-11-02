@@ -128,7 +128,7 @@ _TELEMETRY_ENABLED = True
 _OTEL_ENDPOINT = "https://grpc.public.prd.shared.perforce.com"
 
 _SERVER_SCRIPT = str(pathlib.Path(__file__).resolve())
-_MCP_VERSION   = "1.0.0"
+_MCP_VERSION   = "1.0.1"
 _SERVER_NAME   = os.environ.get(_ENV_SERVER_NAME, "Perforce ALM")  # mcpServers key in a caller-saved config file
 _HTTP_TIMEOUT  = 30   # default timeout for HTTP calls
 
