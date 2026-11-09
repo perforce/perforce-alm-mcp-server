@@ -1156,6 +1156,142 @@ def get_requirement(
 
 
 @mcp.tool(annotations=_READ_ONLY)
+def get_requirement_by_identifier(identifier: str) -> str:
+    """Get one requirement by a user-facing or internal identifier.
+
+    This is a convenience wrapper around the requirement REST API for callers
+    that have a requirement tag or number rather than the numeric internal
+    record ID required by :func:`get_requirement`. The tool first normalises
+    surrounding whitespace and validates the identifier, then follows one of
+    these paths:
+
+    * A numeric identifier is tried as an internal requirement record ID with
+      ``GET /{projectID}/requirements/{itemID}``.
+    * If that direct lookup does not return a usable requirement, or if the
+      identifier is a tag such as ``BR-1960``, the numeric suffix is searched
+      with ``POST /{projectID}/requirements/search`` using the expression
+      ``Tag contains '<number>'`` and requesting only the ``Tag`` field.
+    * The returned candidates are checked locally. A full tag must match the
+      returned tag exactly; a number matches the numeric suffix of a returned
+      tag. The selected internal ID is then fetched with
+      ``GET /{projectID}/requirements/{itemID}`` so the caller receives the
+      complete requirement representation rather than the abbreviated search
+      result.
+
+    This avoids relying on an unbounded list request or on the first page of
+    requirements. It is therefore suitable for requirement numbers beyond the
+    API's default page size, provided the ALM search endpoint returns the
+    matching candidate. The search result is still validated locally because
+    a suffix search can return nearby tags such as ``BR-1960`` and
+    ``FR-1960``.
+
+    Identifier forms:
+
+    * ``1960`` — first interpreted as an internal record ID. If that record
+      does not exist, it is also resolved as the numeric suffix of a tag.
+    * ``BR-1960`` — resolved as a full requirement tag.
+    * ``  BR-1960  `` — surrounding whitespace is ignored for resolution,
+      while the original value is retained in error messages.
+
+    The tool is read-only. It does not modify the requirement, trigger a
+    workflow event, create links, or alter document-tree placement. Expanded
+    attachment content is stripped using the same response sanitisation as
+    :func:`get_requirement`.
+
+    Args:
+        identifier: Internal numeric record ID, full requirement tag (for
+                    example ``BR-1960``), or numeric requirement number.
+                    The value must contain a numeric suffix, optionally
+                    preceded by a tag prefix and hyphen.
+
+    Returns:
+        A JSON-formatted complete requirement object on success. The returned
+        object has the same shape as :func:`get_requirement`, including the
+        server's top-level identifiers and any fields or sub-objects returned
+        by the direct requirement endpoint.
+
+        On failure, returns a human-readable string beginning with
+        ``"Error:"``. Possible failures include:
+
+        * an empty identifier;
+        * an identifier without a numeric suffix;
+        * a direct REST lookup or search request failure;
+        * no matching requirement;
+        * more than one matching requirement after local tag validation.
+
+    Examples:
+        Resolve a full requirement tag::
+
+            get_requirement_by_identifier("BR-1960")
+
+        Resolve an internal numeric record ID::
+
+            get_requirement_by_identifier("1960")
+
+        Resolve a tag while ignoring surrounding whitespace::
+
+            get_requirement_by_identifier("  FR-2048  ")
+
+    Notes:
+        ``get_requirements_by_query`` is the lower-level general-purpose search
+        tool. It returns the search response and requires the caller to resolve
+        the returned requirement ID. This tool performs that resolution and
+        follows it with a complete requirement lookup in one operation.
+    """
+    original = identifier
+    identifier = identifier.strip()
+    if not identifier:
+        return "Error: requirement identifier must not be empty."
+
+    numeric_suffix = identifier.rsplit("-", 1)[-1]
+    if not numeric_suffix.isdigit():
+        return f"Error: invalid requirement identifier '{original}'."
+
+    if identifier.isdigit():
+        try:
+            data = _token_authenticated_request(
+                "GET", _project_path(f"/requirements/{int(identifier)}")
+            )
+        except Exception:
+            # A numeric requirement number may not be the internal record ID;
+            # fall through and resolve it by its tag suffix.
+            pass
+        else:
+            if data.get("error") or data.get("errors"):
+                data = None
+            else:
+                _strip_expanded_attachments(data)
+                return json.dumps(data, indent=2)
+
+    search_body = {"search": f"Tag contains '{numeric_suffix}'", "fields": ["Tag"]}
+    try:
+        data = _token_authenticated_request(
+            "POST", _project_path("/requirements/search"), body=search_body
+        )
+    except Exception as e:
+        return f"Error: {e}"
+
+    matches = [
+        requirement for requirement in data.get("requirements", [])
+        if requirement.get("tag", "") == identifier
+        or requirement.get("tag", "").rsplit("-", 1)[-1] == numeric_suffix
+    ]
+    if not matches:
+        return f"Error: requirement '{original}' was not found."
+    if len(matches) > 1:
+        return f"Error: requirement identifier '{original}' is ambiguous."
+
+    try:
+        result = _token_authenticated_request(
+            "GET", _project_path(f"/requirements/{matches[0]['id']}")
+        )
+    except Exception as e:
+        return f"Error: {e}"
+    _strip_expanded_attachments(result)
+    return json.dumps(result, indent=2)
+
+
+@mcp.tool(annotations=_READ_ONLY)
 def get_requirements_by_query(
     filter_id: str = "",
     search: str = "",
